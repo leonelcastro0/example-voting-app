@@ -29,6 +29,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libhyperscan5 jq
+          
+      - name: Instalar Node.js v22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       # --- 2. INSTALAR CORTEX CLI (Lógica idéntica a Azure) ---
       - name: Cortex CLI install
