@@ -81,9 +81,7 @@ jobs:
       # --- 5. IMAGE SCAN (Lógica idéntica a Azure) ---
       - name: Cortex Image Scan
         run: |
-          set -e
-          set -x
-          ls
+          set -euo pipefail
           docker images
           echo "Scanning image: $IMAGE_NAME"
           sudo cortexcli \
