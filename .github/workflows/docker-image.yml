@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  # Variables globales
   CORTEX_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
   API_ID: ${{ secrets.CORTEX_API_KEY_ID }}
   API_KEY: ${{ secrets.CORTEX_API_KEY }}
@@ -23,13 +24,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- 1. INSTALAR DEPENDENCIAS ---
+      # --- 1. INSTALAR DEPENDENCIAS SISTEMA ---
       - name: Download Cortex dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libhyperscan5 jq
 
-      # --- 2. INSTALAR CORTEX CLI ---
+      # --- 2. INSTALAR CORTEX CLI (Lógica idéntica a Azure) ---
       - name: Cortex CLI install
         run: |
           crtx_resp=$(curl -s "$CORTEX_URL/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
@@ -42,14 +43,19 @@ jobs:
           fi
 
           crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
-          # Forzamos el nombre a 'cortexcli' para facilitar los siguientes pasos
-          curl -sL -o cortexcli "$crtx_url"
-          chmod +x cortexcli
+          crtx_file=$(echo $crtx_resp | jq -r ".file_name")
+          
+          echo "Downloading $crtx_file from signed URL..."
+          curl -sL -o "$crtx_file" "$crtx_url"
+          chmod +x "$crtx_file"
+          
+          # Guardamos el nombre del archivo para los siguientes pasos
+          echo "CRTX_FILENAME=$crtx_file" >> $GITHUB_ENV
 
       # --- 3. CODE SCAN (Antes del Build) ---
       - name: Cortex Code Scan
         run: |
-          ./cortexcli \
+          ./$CRTX_FILENAME \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
@@ -63,13 +69,14 @@ jobs:
       # --- 4. BUILD DE LA IMAGEN ---
       - name: Build Docker image
         run: |
-          # Construimos usando la subcarpeta /vote que vimos en tu captura
           docker build -t $IMAGE_NAME ./vote
 
-      # --- 5. IMAGE SCAN (Con SUDO y dependencias listas) ---
+      # --- 5. IMAGE SCAN (Lógica idéntica a Azure) ---
       - name: Cortex Image Scan
         run: |
-          sudo ./cortexcli \
+          set -x
+          echo "Scanning image: $IMAGE_NAME"
+          sudo ./$CRTX_FILENAME \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
