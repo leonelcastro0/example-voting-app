@@ -1,0 +1,23 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build the Docker image
+      # Especificamos que el Dockerfile está dentro de /vote 
+      # y que el contexto de construcción es esa misma carpeta
+      run: |
+        docker build \
+          -t voting-app-vote:$(date +%s) \
+          ./vote
