@@ -1,4 +1,4 @@
-name: Docker CI with Cortex Scan
+name: Docker CI with Cortex Binary Scan
 
 on:
   push:
@@ -10,8 +10,7 @@ on:
 env:
   CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
   CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
-  CORTEX_API_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com/
-  CORTEX_CLI_VERSION: 0.8.11
+  CORTEX_API_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
 
 jobs:
   security-and-build:
@@ -21,45 +20,44 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- ETAPA 1: PREPARACIÓN PARA CORTEX ---
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      # --- ETAPA 1: CORTEX CLI SCAN ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          platforms: arm64
-          
-      - name: Install Dependencies (jq & curl)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
+          node-version: 22
 
-      - name: Get Cortex Temporary Token
-        id: get_token
+      - name: Download cortexcli
         run: |
-          TOKEN_RESPONSE=$(curl --location "${CORTEX_API_URL}/public_api/cas/v1/cortex-cli/create-token" \
-            --header "Authorization: ${CORTEX_API_KEY}" \
-            --header "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" \
-            --header 'Content-Type: application/json' \
-            --data '{}')
-          TEMP_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.token')
-          echo "TEMP_TOKEN=$TEMP_TOKEN" >> $GITHUB_ENV
-
-      # --- ETAPA 2: ESCANEO DE CÓDIGO ---
-      - name: Pull and Scan with Cortex CLI
-        run: |
-          docker pull distributions-dev.traps.paloaltonetworks.com/cli-docker/${{ env.TEMP_TOKEN }}/method:arm64-${{ env.CORTEX_CLI_VERSION }}-dev
-          docker tag distributions-dev.traps.paloaltonetworks.com/cli-docker/${{ env.TEMP_TOKEN }}/method:arm64-${{ env.CORTEX_CLI_VERSION }}-dev cortexcli:${{ env.CORTEX_CLI_VERSION }}
+          set -e
+          crtx_resp=$(curl -s "${CORTEX_API_URL}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" \
+            -H "Authorization: ${CORTEX_API_KEY}")
           
-          docker run --rm --platform linux/arm64 \
-            -v $(pwd):/src \
-            cortexcli:${{ env.CORTEX_CLI_VERSION }} \
-            --api-base-url ${CORTEX_API_URL} \
-            --api-key ${CORTEX_API_KEY} \
-            --api-key-id ${CORTEX_API_KEY_ID} \
+          crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
+          
+          if [ "$crtx_url" == "null" ]; then
+            echo "Error: No se pudo obtener la URL de descarga. Revisa tus credenciales."
+            exit 1
+          fi
+          
+          curl -sL -o cortexcli "$crtx_url"
+          chmod +x cortexcli
+          ./cortexcli --version
+
+      - name: Run Cortex CLI Code Scan
+        run: |
+          ./cortexcli \
+            --api-base-url "${CORTEX_API_URL}" \
+            --api-key "${CORTEX_API_KEY}" \
+            --api-key-id "${CORTEX_API_KEY_ID}" \
             code scan \
-            --directory /src \
-            --repo-id ${{ github.repository }}
+            --directory "${{ github.workspace }}" \
+            --repo-id "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --source "GITHUB_ACTIONS" \
+            --create-repo-if-missing
 
-      # --- ETAPA 3: CONSTRUCCIÓN (Solo si el scan pasa) ---
+      # --- ETAPA 2: DOCKER BUILD ---
       - name: Build the Docker image
         run: |
           docker build \
