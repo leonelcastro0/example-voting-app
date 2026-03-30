@@ -53,18 +53,18 @@ jobs:
           echo "CRTX_FILENAME=$crtx_file" >> $GITHUB_ENV
 
       # --- 3. CODE SCAN (Antes del Build) ---
-      - name: Cortex Code Scan
-        run: |
-          ./$CRTX_FILENAME \
-            --api-base-url "$CORTEX_URL" \
-            --api-key "$API_KEY" \
-            --api-key-id "$API_ID" \
-            code scan \
-            --directory "${{ github.workspace }}" \
-            --repo-id "${{ github.repository }}" \
-            --branch "${{ github.ref_name }}" \
-            --source "GITHUB_ACTIONS" \
-            --create-repo-if-missing
+      #- name: Cortex Code Scan
+    #    run: |
+     #     ./$CRTX_FILENAME \
+      #      --api-base-url "$CORTEX_URL" \
+       #     --api-key "$API_KEY" \
+        #    --api-key-id "$API_ID" \
+         #   code scan \
+          #  --directory "${{ github.workspace }}" \
+           # --repo-id "${{ github.repository }}" \
+           # --branch "${{ github.ref_name }}" \
+           # --source "GITHUB_ACTIONS" \
+           # --create-repo-if-missing
 
       # --- 4. BUILD DE LA IMAGEN ---
       - name: Build Docker image
@@ -75,9 +75,11 @@ jobs:
       - name: Cortex Image Scan
         run: |
           set -e
+          docker images
           echo "Scanning image: $IMAGE_NAME"
           sudo ./$CRTX_FILENAME \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
-            image scan $IMAGE_NAME
+            image scan $IMAGE_NAME \
+            --verbose
