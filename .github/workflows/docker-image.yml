@@ -74,7 +74,7 @@ jobs:
       # --- 5. IMAGE SCAN (Lógica idéntica a Azure) ---
       - name: Cortex Image Scan
         run: |
-          set -x
+          set -e
           echo "Scanning image: $IMAGE_NAME"
           sudo ./$CRTX_FILENAME \
             --api-base-url "$CORTEX_URL" \
