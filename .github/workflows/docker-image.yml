@@ -33,24 +33,25 @@ jobs:
       # --- 2. INSTALAR CORTEX CLI (Lógica idéntica a Azure) ---
       - name: Cortex CLI install
         run: |
-          crtx_resp=$(curl -s "$CORTEX_URL/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
-            -H "x-xdr-auth-id: $API_ID" \
-            -H "Authorization: $API_KEY") 
-            
-          if [ $? -ne 0 ] || echo "$crtx_resp" | jq -e '.error_code' > /dev/null; then
-            echo "Failed to retrieve CLI download link. Response: $crtx_resp"
-            exit 1
-          fi
+          set -e
+          set -x
+          crtx_resp=$(curl "$(CORTEX_API_URL)/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+          -H "x-xdr-auth-id: $(CORTEX_API_KEY_ID)" \
+          -H "Authorization: $(CORTEX_API_KEY)")
+
+          echo "Respuesta API: $crtx_resp"
 
           crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
-          crtx_file=$(echo $crtx_resp | jq -r ".file_name")
-          
-          echo "Downloading $crtx_file from signed URL..."
-          curl -sL -o "$crtx_file" "$crtx_url"
-          chmod +x "$crtx_file"
-          
-          # Guardamos el nombre del archivo para los siguientes pasos
-          echo "CRTX_FILENAME=$crtx_file" >> $GITHUB_ENV
+  
+          if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
+            echo "##[error]No se pudo obtener el signed_url."
+            exit 1
+          fi
+  
+          curl -o cortexcli $crtx_url
+          chmod +x cortexcli
+          sudo mv cortexcli /usr/local/bin/cortexcli
+          cortexcli --version
 
       # --- 3. CODE SCAN (Antes del Build) ---
       #- name: Cortex Code Scan
@@ -75,6 +76,8 @@ jobs:
       - name: Cortex Image Scan
         run: |
           set -e
+          set -x
+          ls
           docker images
           echo "Scanning image: $IMAGE_NAME"
           sudo ./$CRTX_FILENAME \
