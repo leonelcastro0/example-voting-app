@@ -1,4 +1,4 @@
-name: Docker CI with Cortex Binary Scan
+name: Docker CI with Cortex Full Security
 
 on:
   push:
@@ -11,6 +11,7 @@ env:
   CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
   CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
   CORTEX_API_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
+  IMAGE_NAME: voting-app-vote
 
 jobs:
   security-and-build:
@@ -20,7 +21,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- ETAPA 1: CORTEX CLI SCAN ---
+      # --- ETAPA 1: SETUP Y DOWNLOAD CLI ---
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -28,23 +29,15 @@ jobs:
 
       - name: Download cortexcli
         run: |
-          set -e
           crtx_resp=$(curl -s "${CORTEX_API_URL}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
             -H "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" \
             -H "Authorization: ${CORTEX_API_KEY}")
-          
           crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
-          
-          if [ "$crtx_url" == "null" ]; then
-            echo "Error: No se pudo obtener la URL de descarga. Revisa tus credenciales."
-            exit 1
-          fi
-          
           curl -sL -o cortexcli "$crtx_url"
           chmod +x cortexcli
-          ./cortexcli --version
 
-      - name: Run Cortex CLI Code Scan
+      # --- ETAPA 2: CODE SCAN (Fuentes) ---
+      - name: Run Cortex Code Scan
         run: |
           ./cortexcli \
             --api-base-url "${CORTEX_API_URL}" \
@@ -57,9 +50,18 @@ jobs:
             --source "GITHUB_ACTIONS" \
             --create-repo-if-missing
 
-      # --- ETAPA 2: DOCKER BUILD ---
-      - name: Build the Docker image
+      # --- ETAPA 3: DOCKER BUILD (Local) ---
+      - name: Build Docker Image
         run: |
-          docker build \
-            -t voting-app-vote:$(date +%s) \
-            ./vote
+          # Usamos un tag fijo para el escaneo interno
+          docker build -t ${{ env.IMAGE_NAME }}:local ./vote
+
+      # --- ETAPA 4: IMAGE SCAN (Contenedor) ---
+      - name: Run Cortex Image Scan
+        run: |
+          ./cortexcli \
+            --api-base-url "${CORTEX_API_URL}" \
+            --api-key "${CORTEX_API_KEY}" \
+            --api-key-id "${CORTEX_API_KEY_ID}" \
+            image scan \
+            ${{ env.IMAGE_NAME }}:local
