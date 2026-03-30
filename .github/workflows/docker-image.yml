@@ -1,48 +1,58 @@
-name: Docker CI with Cortex Full Security
+name: Docker CI with Cortex Security
 
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
 env:
-  CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
-  CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
-  CORTEX_API_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
-  IMAGE_NAME: voting-app-vote
+  CORTEX_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
+  API_ID: ${{ secrets.CORTEX_API_KEY_ID }}
+  API_KEY: ${{ secrets.CORTEX_API_KEY }}
+  IMAGE_NAME: "voting-app-vote:latest"
 
 jobs:
-  security-and-build:
+  build-and-scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- ETAPA 1: SETUP Y DOWNLOAD CLI ---
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Download cortexcli
+      # --- 1. INSTALAR DEPENDENCIAS ---
+      - name: Download Cortex dependencies
         run: |
-          crtx_resp=$(curl -s "${CORTEX_API_URL}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
-            -H "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" \
-            -H "Authorization: ${CORTEX_API_KEY}")
+          sudo apt-get update
+          sudo apt-get install -y libhyperscan5 jq
+
+      # --- 2. INSTALAR CORTEX CLI ---
+      - name: Cortex CLI install
+        run: |
+          crtx_resp=$(curl -s "$CORTEX_URL/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: $API_ID" \
+            -H "Authorization: $API_KEY") 
+            
+          if [ $? -ne 0 ] || echo "$crtx_resp" | jq -e '.error_code' > /dev/null; then
+            echo "Failed to retrieve CLI download link. Response: $crtx_resp"
+            exit 1
+          fi
+
           crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
+          # Forzamos el nombre a 'cortexcli' para facilitar los siguientes pasos
           curl -sL -o cortexcli "$crtx_url"
           chmod +x cortexcli
 
-      # --- ETAPA 2: CODE SCAN (Fuentes) ---
-      - name: Run Cortex Code Scan
+      # --- 3. CODE SCAN (Antes del Build) ---
+      - name: Cortex Code Scan
         run: |
           ./cortexcli \
-            --api-base-url "${CORTEX_API_URL}" \
-            --api-key "${CORTEX_API_KEY}" \
-            --api-key-id "${CORTEX_API_KEY_ID}" \
+            --api-base-url "$CORTEX_URL" \
+            --api-key "$API_KEY" \
+            --api-key-id "$API_ID" \
             code scan \
             --directory "${{ github.workspace }}" \
             --repo-id "${{ github.repository }}" \
@@ -50,18 +60,17 @@ jobs:
             --source "GITHUB_ACTIONS" \
             --create-repo-if-missing
 
-      # --- ETAPA 3: DOCKER BUILD (Local) ---
-      - name: Build Docker Image
+      # --- 4. BUILD DE LA IMAGEN ---
+      - name: Build Docker image
         run: |
-          # Usamos un tag fijo para el escaneo interno
-          docker build -t ${{ env.IMAGE_NAME }}:local ./vote
+          # Construimos usando la subcarpeta /vote que vimos en tu captura
+          docker build -t $IMAGE_NAME ./vote
 
-      # --- ETAPA 4: IMAGE SCAN (Contenedor) ---
-      - name: Run Cortex Image Scan
+      # --- 5. IMAGE SCAN (Con SUDO y dependencias listas) ---
+      - name: Cortex Image Scan
         run: |
-          ./cortexcli \
-            --api-base-url "${CORTEX_API_URL}" \
-            --api-key "${CORTEX_API_KEY}" \
-            --api-key-id "${CORTEX_API_KEY_ID}" \
-            image scan \
-            ${{ env.IMAGE_NAME }}:local
+          sudo ./cortexcli \
+            --api-base-url "$CORTEX_URL" \
+            --api-key "$API_KEY" \
+            --api-key-id "$API_ID" \
+            image scan $IMAGE_NAME
