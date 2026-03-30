@@ -86,7 +86,7 @@ jobs:
           ls
           docker images
           echo "Scanning image: $IMAGE_NAME"
-          sudo ./$CRTX_FILENAME \
+          sudo cortexcli \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
