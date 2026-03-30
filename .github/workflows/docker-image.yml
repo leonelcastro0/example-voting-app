@@ -1,23 +1,67 @@
-name: Docker Image CI
+name: Docker CI with Cortex Scan
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CORTEX_API_KEY: ${{ secrets.CORTEX_API_KEY }}
+  CORTEX_API_KEY_ID: ${{ secrets.CORTEX_API_KEY_ID }}
+  CORTEX_API_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com/
+  CORTEX_CLI_VERSION: 0.8.11
 
 jobs:
-  build:
+  security-and-build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Build the Docker image
-      # Especificamos que el Dockerfile está dentro de /vote 
-      # y que el contexto de construcción es esa misma carpeta
-      run: |
-        docker build \
-          -t voting-app-vote:$(date +%s) \
-          ./vote
+      # --- ETAPA 1: PREPARACIÓN PARA CORTEX ---
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+          
+      - name: Install Dependencies (jq & curl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Get Cortex Temporary Token
+        id: get_token
+        run: |
+          TOKEN_RESPONSE=$(curl --location "${CORTEX_API_URL}/public_api/cas/v1/cortex-cli/create-token" \
+            --header "Authorization: ${CORTEX_API_KEY}" \
+            --header "x-xdr-auth-id: ${CORTEX_API_KEY_ID}" \
+            --header 'Content-Type: application/json' \
+            --data '{}')
+          TEMP_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.token')
+          echo "TEMP_TOKEN=$TEMP_TOKEN" >> $GITHUB_ENV
+
+      # --- ETAPA 2: ESCANEO DE CÓDIGO ---
+      - name: Pull and Scan with Cortex CLI
+        run: |
+          docker pull distributions-dev.traps.paloaltonetworks.com/cli-docker/${{ env.TEMP_TOKEN }}/method:arm64-${{ env.CORTEX_CLI_VERSION }}-dev
+          docker tag distributions-dev.traps.paloaltonetworks.com/cli-docker/${{ env.TEMP_TOKEN }}/method:arm64-${{ env.CORTEX_CLI_VERSION }}-dev cortexcli:${{ env.CORTEX_CLI_VERSION }}
+          
+          docker run --rm --platform linux/arm64 \
+            -v $(pwd):/src \
+            cortexcli:${{ env.CORTEX_CLI_VERSION }} \
+            --api-base-url ${CORTEX_API_URL} \
+            --api-key ${CORTEX_API_KEY} \
+            --api-key-id ${CORTEX_API_KEY_ID} \
+            code scan \
+            --directory /src \
+            --repo-id ${{ github.repository }}
+
+      # --- ETAPA 3: CONSTRUCCIÓN (Solo si el scan pasa) ---
+      - name: Build the Docker image
+        run: |
+          docker build \
+            -t voting-app-vote:$(date +%s) \
+            ./vote
