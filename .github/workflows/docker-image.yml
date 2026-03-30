@@ -33,24 +33,30 @@ jobs:
       # --- 2. INSTALAR CORTEX CLI (Lógica idéntica a Azure) ---
       - name: Cortex CLI install
         run: |
-          set -e
-          set -x
-          crtx_resp=$(curl "$(CORTEX_API_URL)/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
-          -H "x-xdr-auth-id: $(CORTEX_API_KEY_ID)" \
-          -H "Authorization: $(CORTEX_API_KEY)")
+          set -euo pipefail  # Detener el script si hay errores o variables vacías
+          
+          echo "Consultando link de descarga..."
+          crtx_resp=$(curl -s -S "${CORTEX_URL}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: ${API_ID}" \
+            -H "Authorization: ${API_KEY}")
+          
+          # Extraer URL y validar con JQ en un solo paso
+          crtx_url=$(echo "$crtx_resp" | jq -e -r '.signed_url // empty')
 
-          echo "Respuesta API: $crtx_resp"
-
-          crtx_url=$(echo $crtx_resp | jq -r ".signed_url")
-  
           if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
-            echo "##[error]No se pudo obtener el signed_url."
+            echo "::error::No se pudo obtener el signed_url de Cortex. Respuesta: $crtx_resp"
             exit 1
           fi
-  
-          curl -o cortexcli $crtx_url
+
+          echo "Descargando e instalando binario..."
+          # -L para seguir redirecciones, -s para modo silencioso
+          curl -sL -o cortexcli "$crtx_url"
           chmod +x cortexcli
+          
+          # Mover a la ruta global para evitar problemas de ./ en pasos futuros
           sudo mv cortexcli /usr/local/bin/cortexcli
+          
+          echo "Instalación completada:"
           cortexcli --version
 
       # --- 3. CODE SCAN (Antes del Build) ---
