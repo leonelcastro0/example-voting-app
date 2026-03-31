@@ -84,4 +84,4 @@ jobs:
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
-            image scan voting-app-vote:latest
+            image scan docker://$IMAGE_NAME
