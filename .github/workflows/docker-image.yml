@@ -85,4 +85,4 @@ jobs:
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
-            image scan ubuntu:latest
+            image scan $IMAGE_NAME
