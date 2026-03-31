@@ -89,7 +89,7 @@ jobs:
           set -euo pipefail
           docker images
           echo "Scanning image: $IMAGE_NAME"
-          sudo cortexcli \
+          cortexcli \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
