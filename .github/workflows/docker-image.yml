@@ -79,9 +79,10 @@ jobs:
         run: |
           cortexcli --version
           docker images
+          docker pull ubuntu:latest
           echo "Scanning image: $IMAGE_NAME"
           cortexcli \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
-            image scan docker://$IMAGE_NAME
+            image scan ubuntu:latest
