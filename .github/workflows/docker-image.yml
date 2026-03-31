@@ -59,7 +59,7 @@ jobs:
           chmod +x cortexcli
           
           # Mover a la ruta global para evitar problemas de ./ en pasos futuros
-          sudo mv cortexcli /usr/local/bin/cortexcli
+          mv cortexcli /usr/local/bin/cortexcli
           
           echo "Instalación completada:"
           cortexcli --version
