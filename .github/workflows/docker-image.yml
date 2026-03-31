@@ -14,7 +14,7 @@ env:
   CORTEX_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
   API_ID: ${{ secrets.CORTEX_API_KEY_ID }}
   API_KEY: ${{ secrets.CORTEX_API_KEY }}
-  IMAGE_NAME: "voting-app-vote:latest"
+  IMAGE_NAME: "result:latest"
 
 jobs:
   build-and-scan:
@@ -72,15 +72,11 @@ jobs:
       # --- 4. BUILD DE LA IMAGEN ---
       - name: Build Docker image
         run: |
-          docker build -t $IMAGE_NAME ./vote
+          docker build -t $IMAGE_NAME ./result
 
       # --- 5. IMAGE SCAN (Lógica idéntica a Azure) ---
       - name: Cortex Image Scan
         run: |
-          cortexcli --version
-          docker images
-          docker pull ubuntu:latest
-          echo "Scanning image: $IMAGE_NAME"
           cortexcli \
             --api-base-url "$CORTEX_URL" \
             --api-key "$API_KEY" \
