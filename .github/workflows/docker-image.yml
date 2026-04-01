@@ -24,18 +24,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # --- 1. INSTALAR DEPENDENCIAS SISTEMA ---
       - name: Download Cortex dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libhyperscan5 jq curl
-          
-      - name: Instalar Node.js v22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
-      # --- 2. INSTALAR CORTEX CLI (Lógica idéntica a Azure) ---
       - name: Cortex CLI install
         run: |          
     
@@ -53,28 +46,25 @@ jobs:
           curl -sL -o cortexcli "$crtx_url"
           chmod +x cortexcli
           mv cortexcli /usr/local/bin/cortexcli
-          cortexcli --version
 
       # --- 3. CODE SCAN (Antes del Build) ---
-      #- name: Cortex Code Scan
-    #    run: |
-     #     ./$CRTX_FILENAME \
-      #      --api-base-url "$CORTEX_URL" \
-       #     --api-key "$API_KEY" \
-        #    --api-key-id "$API_ID" \
-         #   code scan \
-          #  --directory "${{ github.workspace }}" \
-           # --repo-id "${{ github.repository }}" \
-           # --branch "${{ github.ref_name }}" \
-           # --source "GITHUB_ACTIONS" \
-           # --create-repo-if-missing
+      - name: Cortex Code Scan
+        run: |
+          cortexcli \
+            --api-base-url "$CORTEX_URL" \
+            --api-key "$API_KEY" \
+            --api-key-id "$API_ID" \
+            code scan \
+            --directory "${{ github.workspace }}" \
+            --repo-id "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --source "GITHUB_ACTIONS" \
+            --create-repo-if-missing
 
-      # --- 4. BUILD DE LA IMAGEN ---
       - name: Build Docker image
         run: |
           docker build -t $IMAGE_NAME ./result
 
-      # --- 5. IMAGE SCAN (Lógica idéntica a Azure) ---
       - name: Cortex Image Scan
         run: |
           cortexcli \
