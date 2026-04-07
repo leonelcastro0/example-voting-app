@@ -82,4 +82,4 @@ jobs:
 
       - name: Push Image to Docker Hub
         run: |
-          docker push $DOCKER_USER/$IMAGE_NAME:$TAG
+          docker push $DOCKER_USER/$IMAGE_NAME
