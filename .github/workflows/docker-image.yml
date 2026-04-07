@@ -15,7 +15,8 @@ env:
   API_ID: ${{ secrets.CORTEX_API_KEY_ID }}
   API_KEY: ${{ secrets.CORTEX_API_KEY }}
   DOCKER_USER: leonel01py
-  IMAGE_NAME: "result:latest"
+  IMAGE_NAME: "result"
+  TAG: "latest"
 
 jobs:
   build-and-scan:
@@ -64,7 +65,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $IMAGE_NAME ./result
+          docker build -t $DOCKER_USER/$IMAGE_NAME:$TAG ./result
 
       - name: Cortex Image Scan
         run: |
@@ -82,4 +83,4 @@ jobs:
 
       - name: Push Image to Docker Hub
         run: |
-          docker push $DOCKER_USER/$IMAGE_NAME
+          docker push $DOCKER_USER/$IMAGE_NAME:$TAG
