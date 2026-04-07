@@ -14,6 +14,7 @@ env:
   CORTEX_URL: https://api-xsiamnfrsentria.xdr.us.paloaltonetworks.com
   API_ID: ${{ secrets.CORTEX_API_KEY_ID }}
   API_KEY: ${{ secrets.CORTEX_API_KEY }}
+  DOCKER_USER: leonel01py
   IMAGE_NAME: "result:latest"
 
 jobs:
@@ -72,3 +73,13 @@ jobs:
             --api-key "$API_KEY" \
             --api-key-id "$API_ID" \
             image scan $IMAGE_NAME
+            
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: leonel01py
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push Image to Docker Hub
+        run: |
+          docker push $DOCKER_USER/$IMAGE_NAME:$TAG
