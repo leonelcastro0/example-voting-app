@@ -7,6 +7,16 @@ RUN apt-get update && \
 
 WORKDIR /usr/local/app
 
+
+# 1. METER "MALWARE" (Archivo EICAR)
+RUN echo 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > ./eicar_test.txt
+
+# 2. METER "SECRETS" (Credenciales de prueba)
+RUN echo "-----BEGIN RSA PRIVATE KEY----- \nMIIEpAIBAAKCAQEA75p... \n-----END RSA PRIVATE KEY-----" > ./id_rsa_test && \
+    echo "aws_access_key_id=AKIAEXAMPLE123456789" > ./credentials.txt
+
+
+
 # have nodemon available for local dev use (file watching)
 RUN npm install -g nodemon
 
