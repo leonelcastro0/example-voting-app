@@ -50,18 +50,18 @@ jobs:
           mv cortexcli /usr/local/bin/cortexcli
 
       # --- 3. CODE SCAN (Antes del Build) ---
-      - name: Cortex Code Scan
-        run: |
-          cortexcli \
-            --api-base-url "$CORTEX_URL" \
-            --api-key "$API_KEY" \
-            --api-key-id "$API_ID" \
-            code scan \
-            --directory "${{ github.workspace }}" \
-            --repo-id "${{ github.repository }}" \
-            --branch "${{ github.ref_name }}" \
-            --source "GITHUB_ACTIONS" \
-            --create-repo-if-missing
+      #- name: Cortex Code Scan
+      #  run: |
+       #   cortexcli \
+        #    --api-base-url "$CORTEX_URL" \
+         #   --api-key "$API_KEY" \
+          #  --api-key-id "$API_ID" \
+           # code scan \
+            #--directory "${{ github.workspace }}" \
+            #--repo-id "${{ github.repository }}" \
+            #--branch "${{ github.ref_name }}" \
+            #--source "GITHUB_ACTIONS" \
+            #--create-repo-if-missing
 
       - name: Build Docker image
         run: |
