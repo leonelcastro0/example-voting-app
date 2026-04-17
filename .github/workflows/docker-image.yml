@@ -26,7 +26,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download Cortex dependencies
+      - name: Download Cortex dependencie
         run: |
           sudo apt-get update
           sudo apt-get install -y libhyperscan5 jq curl wget
